@@ -116,27 +116,32 @@ class model(object):
         pass
 
     def lyapunovTensorCandidate(self, a):
-        A = tf.constant(tf.convert_to_tensor(a), dtype=tf.float32)
+        A = tf.constant(a, dtype=tf.float32)
         Q = tf.cast(tf.diag([1,1,1,1]),dtype=tf.float32)
         X = tf.Variable(tf.random_normal([4,4]))
         def lyapunovEquation(A,X,Q):
             A_H = tf.transpose(tf.conj(A))
-            return tf.add(tf.subtract(tf.multiply(tf.multiply(A,X),A_H),X),Q)
+            # return tf.add(tf.subtract(tf.multiply(tf.multiply(A,X),A_H),X),Q)
+            return tf.add(tf.add(tf.multiply(A,X), tf.multiply(X, A_H)), Q)
         def positiveDefiniteCheck(x):
-            boolean = tf.multiply(-1.0,tf.linalg.eigvalsh(x))>0
-            boolean = tf.cast(boolean,dtype=tf.float32)
-            return tf.multiply(tf.multiply(-1.0,tf.linalg.eigvalsh(x)),boolean)
-        cost1 = tf.reduce_mean(tf.square(lyapunovEquation(A,X,Q)))
-        cost2 = tf.reduce_sum(positiveDefiniteCheck(X))
-        cost = cost1+cost2
-        optimize = tf.train.AdamOptimizer(learning_rate=0.003).minimize(cost)
+            eigenVals = tf.linalg.eigvalsh(x)
+            product = tf.math.reduce_prod(eigenVals)
+            result = tf.cond(product < 0, lambda: False, lambda: True)
+            if result == False:
+                print("Not positive definite")
+                return 0
+            else:
+                print("Positive definite")
+                return 1
+        cost = tf.math.divide(tf.reduce_mean(tf.square(lyapunovEquation(A,X,Q))), positiveDefiniteCheck(X))
+        optimize = tf.train.AdamOptimizer(learning_rate=0.03).minimize(cost)
         sess = tf.Session()
         sess.run(tf.global_variables_initializer())
         def train(iterations):
             for i in range(iterations):
                 if i%1000==0:
-                    trainCost = sess.run(cost)
-                    print("Iteration:",i,"Cost:",trainCost)
+                    trainCost, candidate = sess.run([cost, X])
+                    print("Iteration:",i,"Cost:",trainCost, " @ candidate:", candidate)
                 sess.run(optimize)
             pass
         train(100000)
@@ -144,22 +149,23 @@ class model(object):
     # NUMPY FUNCTIONS:
     def computeNumpyJacobian(self, y1, y2, y3, y4):
         J = np.zeros((4, 4), dtype=np.float32)
-        J[0, 0] = - 120*y3*y2^3 - 36*y4^4 - 3/10
-        J[0, 1] = -360*y2^2*y3*(y1 - 50)
-        J[0, 2] = -120*y2^3*(y1 - 50)
-        J[0, 3] = -144*y4^3*(y1 + 77)
-        J[1, 0] = (2*y2*exp(- y1/18 - 65/18))/9 + (y2 - 1)/(10*(exp(- y1/10 - 4) - 1)) + (exp(- y1/10 - 4)*(y1/10 + 4)*(y2 - 1))/(10*(exp(- y1/10 - 4) - 1)^2)
-        J[1, 1] = (y1/10 + 4)/(exp(- y1/10 - 4) - 1) - 4*exp(- y1/18 - 65/18)
+        J[0, 0] = - 120*y3*np.power(y2, 3) - 36*np.power(y4, 4) - 3/10
+        J[0, 1] = -360*np.power(y2, 2)*y3*(y1 - 50)
+        J[0, 2] = -120*np.power(y2, 3)*(y1 - 50)
+        J[0, 3] = -144*np.power(y4, 3)*(y1 + 77)
+        J[1, 0] = (2*y2*np.exp(- y1/18 - 65/18))/9 + (y2 - 1)/(10*(np.exp(- y1/10 - 4) - 1)) + (np.exp(- y1/10 - 4)*(y1/10 + 4)*(y2 - 1))/(10*np.power((np.exp(- y1/10 - 4) - 1), 2))
+        J[1, 1] = (y1/10 + 4)/(np.exp(- y1/10 - 4) - 1) - 4*np.exp(- y1/18 - 65/18)
         J[1, 2] = 0
         J[1, 3] = 0
-        J[2, 0] = (7*exp(- y1/20 - 13/4)*(y3 - 1))/2000 - (y3*exp(- y1/10 - 7/2))/(10*(exp(- y1/10 - 7/2) + 1)^2)
+        J[2, 0] = (7*np.exp(- y1/20 - 13/4)*(y3 - 1))/2000 - (y3*np.exp(- y1/10 - 7/2))/(10*np.power((np.exp(- y1/10 - 7/2) + 1),2))
         J[2, 1] = 0
-        J[2, 2] = - (7*exp(- y1/20 - 13/4))/100 - 1/(exp(- y1/10 - 7/2) + 1)
+        J[2, 2] = - (7*np.exp(- y1/20 - 13/4))/100 - 1/(np.exp(- y1/10 - 7/2) + 1)
         J[2, 3] = 0
-        J[3, 0] = (y4*exp(- y1/80 - 13/16))/640 + (y4 - 1)/(100*(exp(- y1/10 - 11/2) - 1)) + (exp(- y1/10 - 11/2)*(y1/100 + 11/20)*(y4 - 1))/(10*(exp(- y1/10 - 11/2) - 1)^2)
+        J[3, 0] = (y4*np.exp(- y1/80 - 13/16))/640 + (y4 - 1)/(100*(np.exp(- y1/10 - 11/2) - 1)) + (np.exp(- y1/10 - 11/2)*(y1/100 + 11/20)*(y4 - 1))/(10*np.power((np.exp(- y1/10 - 11/2) - 1), 2))
         J[3, 1] = 0
         J[3, 2] = 0
-        J[3, 3] = (y1/100 + 11/20)/(exp(- y1/10 - 11/2) - 1) - exp(- y1/80 - 13/16)/8
+        J[3, 3] = (y1/100 + 11/20)/(np.exp(- y1/10 - 11/2) - 1) - np.exp(- y1/80 - 13/16)/8
+        print(J)
         return J
     
     def computeNumpyAlphas(self, gateType, membranePotential):
@@ -217,7 +223,5 @@ class model(object):
         n = self.computeNumpyGateValues(nAlpha, nBeta)
         m = self.computeNumpyGateValues(mAlpha, mBeta)
         h = self.computeNumpyGateValues(hAlpha, hBeta)
-        dvBydt = (1/Cm) * (injectedCurrent - gNa*np.pow(m, 3)*h*(membranePotential - ENa) - gK*np.pow(n, 4)*(membranePotential - EK) - gl*(membranePotential - Er))
+        dvBydt = (1/Cm) * (injectedCurrent - gNa*np.power(m, 3)*h*(membranePotential - ENa) - gK*np.power(n, 4)*(membranePotential - EK) - gl*(membranePotential - Er))
         return dvBydt
-
-    
