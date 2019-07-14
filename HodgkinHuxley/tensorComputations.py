@@ -1,6 +1,5 @@
 import tensorflow as tf
 from HodgkinHuxley.numpyComputations import numpyComputations
-import numpy as np
 
 class tensorComputations(object):
     def __init__(self, Er=-54.387, ENa=50, EK=-77, Cm=1, gl=0.3, gNa=120, gK=36):
@@ -150,7 +149,7 @@ class tensorComputations(object):
 
     def lyapunovFunction(self, candidate, VmStart=25, IinjStart=0):
         VmCurrent, mCurrent, hCurrent, nCurrent = self.npComps.current(VmStart, IinjStart)
-        states = tf.constant(np.reshape(np.asarray([VmCurrent, mCurrent, hCurrent, nCurrent]), [4, 1]), dtype=tf.float32)
+        states = tf.constant([VmCurrent, mCurrent, hCurrent, nCurrent], shape=[4, 1], dtype=tf.float32)
         Iinj = tf.constant(IinjStart, dtype=tf.float32)
         surface = tf.linalg.matmul(tf.transpose(states), tf.linalg.matmul(candidate, states))
         gradients = tf.gradients(ys=surface, xs=states)
@@ -158,11 +157,11 @@ class tensorComputations(object):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             currents, surf, grads, futures = sess.run([states, surface, gradients, futures])
-        grads = np.reshape(np.asarray(grads[0]), [1, 4])
-        futures = np.reshape(np.asarray(futures), [1, 4])
-        surfaceGradient = np.sum(np.multiply(grads, futures))
+        grads = self.npComps.shaper(grads[0], [1, 4])
+        futures = self.npComps.shaper(futures, [1, 4])
+        surfaceGradient = self.npComps.elementsSum(self.npComps.elementWiseMultiply(grads, futures))
         print(surf)
-        if np.sum(surf) > 0 and surfaceGradient < 0:
+        if surf[0] > 0 and surfaceGradient < 0:
             print("The system is stable at Vm:", VmStart)
         else:
             print("The system is unstable at Vm", VmStart)

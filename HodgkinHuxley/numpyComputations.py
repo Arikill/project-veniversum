@@ -67,3 +67,12 @@ class numpyComputations(object):
         nBeta = self.beta("n", Vm)
         n = self.gate(nAlpha, nBeta)
         return Vm, m, h, n
+    
+    def shaper(self, value, newShape):
+        return np.reshape(np.asarray(value), newShape)
+    
+    def elementWiseMultiply(self, array1, array2):
+        return np.multiply(array1, array2)
+    
+    def elementsSum(self, array):
+        return np.sum(array)
