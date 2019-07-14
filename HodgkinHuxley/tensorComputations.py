@@ -97,7 +97,7 @@ class tensorComputations(object):
         VmFutureComputed, _, _, _ = self.future(Vm, Iinj)
         cost = tf.reduce_mean(tf.square(tf.subtract(VmFuture, VmFutureComputed)))
         iterations = 100000
-        costTolerance = 1E-8
+        costTolerance = 1E-10
         VmCurrent = 0
         optimize = tf.train.AdamOptimizer(learning_rate=0.03).minimize(cost)
         with tf.Session() as sess:
@@ -176,7 +176,6 @@ class tensorComputations(object):
         grads = self.npComps.shaper(grads[0], [1, 4])
         futures = self.npComps.shaper(futures, [1, 4])
         surfaceGradient = self.npComps.elementsSum(self.npComps.elementWiseMultiply(grads, futures))
-        print(surf)
         if surf[0] > 0 and surfaceGradient < 0:
             print("The system is stable at Vm:", VmStart)
         else:
