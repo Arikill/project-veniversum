@@ -114,7 +114,7 @@ class model(object):
             pass
         v_eq, m_eq, h_eq, n_eq = train(100000)
         print("Equilibrum @ v:", v_eq, " m:", m_eq, " h:", h_eq, " n:", n_eq)
-        a = self.computeNumpyJacobian(v=0, m=0, h=0, n=0)
+        a = self.computeNumpyJacobian(v=v_eq, m=m_eq, h=h_eq, n=n_eq)
         self.lyapunovTensorCandidate(a)
         pass
 
@@ -124,8 +124,8 @@ class model(object):
         X = tf.Variable(tf.random_normal([4,4]))
         def lyapunovEquation(A,X,Q):
             A_H = tf.transpose(tf.conj(A))
-            # return tf.add(tf.subtract(tf.multiply(tf.multiply(A,X),A_H),X),Q)
-            return tf.add(tf.add(tf.multiply(A,X), tf.multiply(X, A_H)), Q)
+            return tf.add(tf.subtract(tf.multiply(tf.multiply(A,X),A_H),X),Q)
+            # return tf.add(tf.add(tf.multiply(A,X), tf.multiply(X, A_H)), Q)
         def positiveDefiniteCheck(x):
             eigenVals = tf.math.real(tf.linalg.eigvalsh(x))
             product = tf.math.reduce_prod(eigenVals)
