@@ -1,4 +1,8 @@
-from HodgkinHuxley.model import model
+from HodgkinHuxley.tensorComputations import tensorComputations
 
-mdl = model()
-mdl.equilibrium()
+tenComp = tensorComputations()
+VmEq, mEq, hEq, nEq = tenComp.equilibrium()
+J = tenComp.jacobian(Iinj=0, VmEquilibrium=VmEq, mEquilibrium=mEq, hEquilibrium=hEq, nEquilibrium=nEq)
+C = tenComp.lyapunovCandidate(J)
+print(tenComp.lyapunovFunction(C))
+print(J)
