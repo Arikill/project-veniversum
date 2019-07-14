@@ -1,6 +1,7 @@
 import tensorflow as tf
 from HodgkinHuxley.numpyComputations import numpyComputations
 
+# tensorComputations class provides tensorflow computations to test the stability of Hodgkin-Huxley Model.
 class tensorComputations(object):
     def __init__(self, Er=-54.387, ENa=50, EK=-77, Cm=1, gl=0.3, gNa=120, gK=36):
         self.Er = tf.constant(Er, dtype=tf.float32)
@@ -13,6 +14,7 @@ class tensorComputations(object):
         self.npComps = numpyComputations(Er=-54.387, ENa=50, EK=-77, Cm=1, gl=0.3, gNa=120, gK=36)
         pass
     
+    # Compute gate variable alpha
     def alpha(self, gateType, Vm):
         if gateType == "n":
             a = tf.constant(0.01, dtype=tf.float32)
@@ -34,6 +36,7 @@ class tensorComputations(object):
             c = tf.constant(20, dtype=tf.float32)
             return (a * tf.exp(-(Vm+b)/c))
     
+    # Compute gate variable beta
     def beta(self, gateType, Vm):
         if gateType == "n":
             a = tf.constant(0.125, dtype=tf.float32)
@@ -52,12 +55,15 @@ class tensorComputations(object):
             d = tf.constant(10, dtype=tf.float32)
             return (a / (b + tf.exp(-(Vm+c)/d)))
         
+    # Compute gate values:
     def gate(self, alpha, beta):
         return alpha/(alpha + beta)
     
+    # Compute gateRates:
     def gateRate(self, gate, alpha, beta):
         return alpha*(tf.constant(1, dtype=tf.float32)-gate)+beta*gate
     
+    # Compute future states of the model
     def future(self, Vm, Iinj, m=None, h=None, n=None):
         mAlpha = self.alpha("m", Vm)
         mBeta = self.beta("m", Vm)
@@ -83,6 +89,7 @@ class tensorComputations(object):
         nFuture = self.gateRate(n, nAlpha, nBeta)
         return VmFuture, mFuture, hFuture, nFuture
 
+    # Compute equilibrium points of the model
     def equilibrium(self):
         VmFuture = tf.constant(0, dtype=tf.float32)
         Iinj = tf.constant(0, dtype=tf.float32)
@@ -106,6 +113,7 @@ class tensorComputations(object):
         print("The equilibria are at: ", VmCurrent, mCurrent, hCurrent, nCurrent)
         return VmCurrent, mCurrent, hCurrent, nCurrent
 
+    # Compute jacobian at a given point.
     def jacobian(self, Iinj=0, VmEquilibrium=0, mEquilibrium=0, hEquilibrium=0, nEquilibrium=0):
         Vm = tf.Variable(VmEquilibrium, dtype=tf.float32)
         m = tf.Variable(mEquilibrium, dtype=tf.float32)
@@ -122,6 +130,7 @@ class tensorComputations(object):
             _, _, _, _, VmGrads, mGrads, hGrads, nGrads= sess.run([VmFuture, mFuture, hFuture, nFuture, VmGradients, mGradients, hGradients, nGradients])
         return [VmGrads, [mGrads[0], mGrads[1], 0, 0], [hGrads[0], 0, hGrads[1], 0], [nGrads[0], 0, 0, nGrads[0]]]
 
+    # Compute Lyapunov candidate function by minimizing Lyapuno Discrete Equation.
     def lyapunovCandidate(self, jacobian):
         A = tf.constant(jacobian, dtype=tf.float32)
         Q = tf.cast(tf.diag([1,1,1,1]),dtype=tf.float32)
@@ -143,10 +152,17 @@ class tensorComputations(object):
                 sess.run(optimize)
         return candidate
 
+    # Defining Lyapunov Discrete Equation
     def lyapunovEquation(self, A, X, Q):
         A_H = tf.transpose(tf.conj(A))
         return tf.add(tf.subtract(tf.multiply(tf.multiply(A, X), A_H), X), Q)
 
+    # Compute Lyapunov Function and its derivative (V(x) and V_dot(x))
+    # First V(x) > 0 for all x -> Positive definiteness of candidate matrix X as a solution to Lyapunov Equation.
+    # Second V_dox(x) < 0 for give x, to see if the system is stable at that point in space and time.
+    # All values between Vm = -65mV and Vm = 0 will have V_dot(x) > 0, this is the zone where spikes occur.
+    # All values Vm > 0 and Vm < -65 will have V_dot(x) < 0 and will be pushed into the unstable zone, which is downward
+    #  and after hyperpolarization phases of action potentials.
     def lyapunovFunction(self, candidate, VmStart=25, IinjStart=0):
         VmCurrent, mCurrent, hCurrent, nCurrent = self.npComps.current(VmStart, IinjStart)
         states = tf.constant([VmCurrent, mCurrent, hCurrent, nCurrent], shape=[4, 1], dtype=tf.float32)
